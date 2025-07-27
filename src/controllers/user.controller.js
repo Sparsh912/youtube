@@ -36,7 +36,7 @@ const registerUser = asyncHandler( async (req , res) => {
     }
 
     // 3- check if user already exists: username , email
-    const existedUser = User.findOne({
+    const existedUser =await User.findOne({
         $or : [{ username } , { email }]
     })
     if (existedUser){
@@ -45,7 +45,12 @@ const registerUser = asyncHandler( async (req , res) => {
 
     // 4- check for images, avatar
     const avatarLocalPath = req.files?.avatar[0]?.path;
-    const coverImageLocalPath = req.files?.coverImage[0]?.path;
+    // const coverImageLocalPath = req.files?.coverImage[0]?.path;
+
+    let coverImageLocalPath;
+    if (req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0){
+        coverImageLocalPath = req.files.coverImage[0].path
+    }
 
     if(!avatarLocalPath){
         throw new ApiError(400 , "Avatar file is required")
@@ -83,4 +88,82 @@ const registerUser = asyncHandler( async (req , res) => {
     )
 })
 
-export { registerUser }
+const generateAccessAndRefreshTokens = async (userId) => {
+    try {
+        const user = await User.findOne(userId);
+        const accessToken = user.generateAccessToken();
+        const refreshToken =user.generateRefreshToken();
+        
+        //to save refreshtoken in database
+        user.refreshToken = refreshToken
+        await user.save({ validateBeforeSave : false})
+
+        return {accessToken , refreshToken} 
+
+    } catch (error) {
+        throw new ApiError(500 , "Something went wrong while generting refresh and access token")
+    }
+}
+
+const loginUser = asyncHandler( async (req , res) =>{
+    //req body -> data
+    //username or email
+    //find the user 
+    //password check
+    //access and refresh token
+    //send cookie
+
+    const {email, username, password} = req.body;
+
+    if(!username || !email){
+        throw new ApiError(400 , "useranme or password is required")
+    }
+
+    // User.findOne({email})    for only by email
+    const user = await User.findOne({
+        $or: [{email}, {username}]
+    })
+
+    if (!user){
+        throw new ApiError(404 , "User does not exist")
+    }
+
+    const isPasswordValid = await user.isPasswordCorrect(password)
+    // Not " User " model having schema method created by us , these are user by the " user "
+
+    if (!isPasswordValid){
+        throw new ApiError(401 ,"Invalid user credential")
+    }
+
+    const {accessToken , refreshToken} = await generateAccessAndRefreshTokens(user._id)
+
+    const loggedInUser =await User.findById(user._id).select("-password -refreshToken")
+
+    const options = {
+        httpOnly : true,
+        secure : true,
+        //cookie is only modified only by server
+    }
+
+    return res
+    .status(200)
+    .cookie("accessToken" ,accessToken ,options)
+    .cookie("refreshToken" , refreshToken ,options)
+    .json(
+        new ApiResponse(
+            200, 
+            {
+                user: loggedInUser ,accessToken ,refreshToken
+            },
+            "User logged In successfully"
+        )
+    )
+
+})
+
+
+export { 
+    registerUser,
+    loginUser,
+    generateAccessAndRefreshTokens 
+}
