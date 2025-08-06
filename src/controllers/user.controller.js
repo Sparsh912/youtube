@@ -255,7 +255,7 @@ const changeCurrentPassword = asyncHandler( async (req,res) => {
     
     return res
     .status(200)
-    .json(new ApiResponse(200 ,{} ,"Password changed Successfully"))
+    .json(new ApiResponse(200 ,{} ,`Password changed Successfully ${newPassword}`))
 
 })
 
@@ -292,9 +292,11 @@ const updateAccountDetails = asyncHandler(async(req,res) =>{
     .json(new ApiResponse(200 , user ,"Account details updated successfully"))
 })
 
-const updateUserAvatar =asyncHandler(async (req,res) =>{
-    const avatarLocalPath = req.file?.path
-
+const updateUserAvatar = asyncHandler( async (req ,res) => {
+    const avatarLocalPath = req.file?.path;
+    
+    // console.log(`Sparsh ${avatarLocalPath}`);
+    
     if(!avatarLocalPath) {
         throw new ApiError(400 , "Avatar file is missing")
     }
@@ -398,7 +400,7 @@ const getUserChannelProfile = asyncHandler( async (req , res) => {
                 },
                 isSubscribed : {
                     $cond : {
-                        if : {$in : [req.user?._id , "$ssubscribers.subscriber"]},
+                        if : {$in : [req.user?._id , "$subscribers.subscriber"]},
                         then : true , 
                         else : false
                     }

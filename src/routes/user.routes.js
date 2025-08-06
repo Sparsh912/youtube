@@ -42,7 +42,11 @@ router.route("/current-user").get(verifyJWT,getCurrentUser)
 
 router.route("/update-account").patch(verifyJWT , updateAccountDetails)
 
-router.route("/avatar").patch(verifyJWT , upload.single("avatar") , updateUserAvatar)
+// router.route("/avatar").patch(verifyJWT , upload.single('avatar') , updateUserAvatar)        //this one and below one both are correct
+router.patch("/avatar", verifyJWT, upload.single("avatar"), // Field name must match frontend
+  updateUserAvatar
+);
+
 router.route("/cover-image").patch(verifyJWT , upload.single("coverImage") , updateUserCoverImage)
 
 router.route("/c/:username").get(verifyJWT, getUserChannelProfile)
